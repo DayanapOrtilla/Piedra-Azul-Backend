@@ -1,0 +1,5 @@
+export enum ProfessionalType {
+  MEDICO = 'MEDICO',
+  TERAPISTA = 'TERAPISTA',
+  ADMINISTRATIVO = 'ADMINISTRATIVO',
+}

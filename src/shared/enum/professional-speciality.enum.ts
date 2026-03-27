@@ -1,0 +1,5 @@
+export enum ProfessionalSpeciality {
+    TERAPIA_NEURAL = 'TERAPIA NEURAL',
+    QUIROPRAXIA = 'QUIROPRAXIA',
+    FISIOTERAPIA = 'FISIOTERAPIA',
+}
