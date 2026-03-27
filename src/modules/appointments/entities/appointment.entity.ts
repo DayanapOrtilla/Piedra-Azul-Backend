@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { Professional } from '../../professionals/entities/professional.entity';
 import { Patient } from '../../patients/entities/patient.entity';
 import { AppointmentStatus } from '../../../shared/enum/appointment-status.enum';
+import { ProfessionalSpeciality } from '../../../shared/enum/professional-speciality.enum';
 
 @Entity('appointments')
 export class Appointment {

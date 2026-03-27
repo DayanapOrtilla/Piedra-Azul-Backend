@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, Check } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, Check, OneToOne, JoinColumn } from 'typeorm';
 import { Appointment } from '../../appointments/entities/appointment.entity';
 import { PatientGender } from '../../../shared/enum/patient-gender.enum';
+import { User } from '../../../modules/users/entities/user.entity';
 
 @Entity('patients')
 @Check(`"document" ~ '^[0-9-]+$'`)
@@ -34,11 +35,15 @@ export class Patient {
   phone: string;
 
   @Column({ nullable: true})
-  email: string;
+  email?: string;
 
   @Column ( {default: true})
   isActive: boolean;
 
+  @OneToOne(() => User, (user) => user.patient, { cascade: true, nullable: true})
+  @JoinColumn()
+  user?: User;
+  
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
   appointments: Appointment[];
 }

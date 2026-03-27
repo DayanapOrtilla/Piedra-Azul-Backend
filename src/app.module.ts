@@ -11,6 +11,12 @@ import { ProfessionalsModule } from './modules/professionals/professionals.modul
 import { AvailabilitiesModule } from './modules/availabilities/availabilities.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { User } from './modules/users/entities/user.entity';
+import { UsersModule } from './modules/users/users.module';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -28,16 +34,27 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
-        entities: [Professional, Patient, Appointment, Availability],
+        entities: [Professional, Patient, Appointment, Availability, User],
         synchronize: true,
       }),
     }),
     ProfessionalsModule,
     AvailabilitiesModule,
     PatientsModule,
-    AppointmentsModule
+    AppointmentsModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard
+    },
+    {
+    provide: APP_GUARD,
+    useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -1,12 +1,10 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AvailabilityService } from '../../availabilities/services/availability.service';
 import { Appointment } from '../entities/appointment.entity';
-import { ProfessionalsService } from '../../../modules/professionals/services/professionals.service';
-import { PatientsService } from '../../../modules/patients/services/patients.service';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
 import { Availability } from '../../../modules/availabilities/entities/availability.entity';
+import { UserRole } from '../../../shared/enum/user-role.enum';
 
 @Injectable()
 export class AppointmentService {
@@ -57,5 +55,35 @@ export class AppointmentService {
       where: { id },
       relations: ['professionals', 'patients']
     });
+  }
+
+  async findByUser(userId: string, role: string, date?: string, professionalId?: string): Promise<Appointment[]> {
+    const queryOptions: any = {
+    // 'professional.user' y 'patient.user' para que las relaciones estén completas
+    relations: ['patient', 'professional', 'patient.user', 'professional.user'],
+      order: { date: 'DESC' },
+      where: {}
+    };
+
+    //Filtrado por ROL (Seguridad)
+    if (role === UserRole.PACIENTE) {
+      queryOptions.where.patient = { user: { id: userId } };
+    } 
+    else if (role === UserRole.MEDICO || role === UserRole.TERAPISTA) {
+      queryOptions.where.professional = { user: { id: userId } };
+    }
+    // Si es ADMIN/AGENDADOR, queryOptions.where se queda vacío aquí (ve todo)
+
+    //Filtrado por FECHA
+    if (date) {
+      queryOptions.where.date = date; // TypeORM maneja el string 'YYYY-MM-DD' directo
+    }
+
+    // 3. Filtrado por PROFESIONAL
+    if (professionalId) {
+      queryOptions.where.professional = { id: professionalId };
+    }
+
+    return await this.appointmentRepo.find(queryOptions);
   }
 }

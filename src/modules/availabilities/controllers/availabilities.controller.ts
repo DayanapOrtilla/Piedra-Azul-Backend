@@ -1,5 +1,6 @@
-import { Controller, Patch, Param, Body, ParseUUIDPipe, Get } from '@nestjs/common';
+import { Controller, Patch, Param, Body, ParseUUIDPipe, Get, Put } from '@nestjs/common';
 import { AvailabilityService } from '../services/availability.service';
+import { UpdateAvailabilityDto } from '../dto/update-availability.dto';
 
 @Controller('availabilities')
 export class AvailabilityController {
@@ -10,16 +11,29 @@ export class AvailabilityController {
     return await this.availabilityService.findAll();
   }
 
-  @Get('professional/:professionalId') // GET http://localhost:3000/availability/professional/UUID
-  async findByProfessional(@Param('professionalId', ParseUUIDPipe) professionalId: string) {
-    return await this.availabilityService.findByProfessional(professionalId);
+  @Get(':id')
+  async findById(@Param('id', ParseUUIDPipe) professionalId: string){
+    return await this.availabilityService.findById(professionalId);
   }
 
-  @Patch(':id')
+
+  @Get(':id/availability') // GET http://localhost:3000/availabilities/id/availability
+  async findByProfessionalId(@Param('id', ParseUUIDPipe) professionalId: string) {
+    return await this.availabilityService.findByProfessionalId(professionalId);
+  }
+
+  @Put(':id/availability')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateData: any // Luego podemos crear un DTO para esto
+    @Body() updateData: UpdateAvailabilityDto[] // Luego podemos crear un DTO para esto
   ) {
     return await this.availabilityService.update(id, updateData);
+  }
+
+  @Patch(':id/deactivate')
+  async deactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return await this.availabilityService.deactivate(id);
   }
 }

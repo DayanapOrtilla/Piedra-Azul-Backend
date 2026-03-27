@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, UseGuards, Req, Query } from '@nestjs/common';
 import { AppointmentService } from '../services/appointment.service';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
+import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 
 @Controller('appointments')
 export class AppointmentsController {
@@ -16,9 +17,16 @@ export class AppointmentsController {
     return await this.appointmentService.findAll();
   }
 
-  @Get(':id')
-  // Usamos ParseUUIDPipe para validar que el ID de Angular sea un UUID válido
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return await this.appointmentService.findOne(id);
+  @Get('my-appointments')
+  async geMyHistory(@Req() req, 
+    @Query('date') date?: string, 
+    @Query('professionalId') professionalId?: string
+  ) {
+    return await this.appointmentService.findByUser(
+      req.user.id, 
+      req.user.role, 
+      date, 
+      professionalId
+    );
   }
 }
