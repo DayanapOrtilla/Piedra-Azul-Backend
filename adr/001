@@ -1,0 +1,26 @@
+**Título:** ADR-001: No implementación del patrón Wizard en el agendamiento  
+
+**Fecha:** 2026-04-09  
+
+**Estado:** En desarrollo  
+
+**Contexto:**  
+La documentación oficial del sistema establece que el formulario de agendamiento de citas implementa el patrón Multi-Step/Wizard, permitiendo guiar al usuario a través de pasos secuenciales como selección de especialidad, profesional, fecha, franja horaria y confirmación.  
+
+Sin embargo, al analizar el código fuente del frontend en Angular, no existe ningún componente que implemente esta lógica de pasos. Únicamente se identifican servicios que soportan la lógica del negocio, como la obtención de especialidades, profesionales y disponibilidad, pero no existe una interfaz de usuario que materialice este patrón.  
+
+**Decisión:**  
+Se decidió priorizar la implementación de la lógica de negocio y los servicios backend en el primer corte del proyecto, dejando la implementación del componente visual tipo wizard para una iteración posterior.  
+
+La documentación no fue actualizada para reflejar esta decisión, generando una inconsistencia entre lo documentado y lo implementado.  
+
+**Consecuencias:**  
+
+**Positivas:**  
+- Se avanzó rápidamente en la lógica central del sistema.  
+- Se garantizó la disponibilidad de los endpoints necesarios para el agendamiento.  
+
+**Negativas o riesgos:**  
+- La experiencia de usuario no es guiada, afectando la usabilidad.  
+- Existe deuda de documentación.  
+- Riesgo de confusión para nuevos desarrolladores o stakeholders.  
