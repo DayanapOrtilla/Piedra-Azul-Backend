@@ -1,0 +1,68 @@
+# ADR-001: Registro de JwtAuthGuard y RolesGuard como guards globales en APP_GUARD
+
+- **Fecha:** 14 de abril de 2026
+- **Estado:** Terminado
+
+---
+
+## Contexto
+
+El sistema Piedrazul maneja cuatro roles de usuario distintos (ADMINISTRADOR, AGENDADOR, MEDICO/TERAPISTA, PACIENTE), cada uno con acceso restringido a funcionalidades específicas. Desde el inicio del proyecto se definió como requisito no funcional crítico que ningún endpoint debería ser accesible sin autenticación válida, y que cada ruta debería estar protegida según el rol del usuario autenticado.
+
+La solución más simple habría sido decorar manualmente cada controlador con `@UseGuards(JwtAuthGuard, RolesGuard)`. Sin embargo, este enfoque presenta un riesgo de seguridad severo: si un desarrollador agrega un nuevo controlador y olvida colocar el decorador, ese endpoint queda completamente expuesto sin protección. En un sistema que maneja datos clínicos de pacientes, un endpoint desprotegido por descuido es inaceptable.
+
+El documento de arquitectura entregado en el primer corte describe los guards como componentes del frontend Angular (AuthGuard, RoleGuard) y menciona su existencia en el backend, pero **no documenta cómo se registran ni por qué se eligió el mecanismo de registro global**, dejando oculta una decisión técnica crítica para la seguridad del sistema.
+
+---
+
+## Decisión
+
+Se registraron `JwtAuthGuard` y `RolesGuard` como providers globales en `AppModule` usando el token `APP_GUARD` de NestJS:
+
+```typescript
+// src/app.module.ts
+providers: [
+  AppService,
+  {
+    provide: APP_GUARD,
+    useClass: JwtAuthGuard,
+  },
+  {
+    provide: APP_GUARD,
+    useClass: RolesGuard,
+  },
+],
+```
+
+Con este registro, **todos los endpoints del sistema están protegidos por defecto** sin necesidad de decoradores en cada controlador. Para las rutas públicas (como el login), se utiliza el decorador `@Public()` que activa una bandera de metadatos (`IS_PUBLIC_KEY`) que el `JwtAuthGuard` revisa antes de delegar a Passport:
+
+```typescript
+// src/modules/auth/guards/jwt-auth.guard.ts
+canActivate(context: ExecutionContext) {
+  const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+    context.getHandler(),
+    context.getClass(),
+  ]);
+  if (isPublic) return true;
+  return super.canActivate(context);
+}
+```
+
+El `RolesGuard` complementa al `JwtAuthGuard` verificando que el rol del usuario en el token JWT coincida con los roles requeridos por el endpoint, definidos mediante el decorador `@Roles(...)`.
+
+---
+
+## Consecuencias
+
+### Positivas
+
+- **Seguridad por defecto (secure-by-default):** Todo endpoint nuevo queda protegido automáticamente sin que el desarrollador tenga que recordar agregar decoradores. Elimina una clase entera de vulnerabilidades por descuido.
+- **Cumplimiento del escenario de calidad de seguridad documentado:** El 100% de los intentos de acceso no autorizado son bloqueados, tal como se definió en el criterio de calidad del primer corte (ningún usuario sin rol ADMINISTRADOR puede acceder al módulo de configuración, independientemente de la URL que escriba).
+- **Separación de responsabilidades:** La lógica de seguridad vive en un solo lugar (`AppModule`) y no está dispersa por todos los controladores del sistema.
+- **Opt-out explícito:** El patrón opt-out con `@Public()` es más seguro que el opt-in con `@UseGuards()`, porque el caso de olvido resulta en protección en lugar de exposición.
+
+### Negativas o riesgos
+
+- **Complejidad de pruebas unitarias:** Al ser guards globales, los tests de controladores que no requieren autenticación necesitan configurar manualmente los mocks del `Reflector` o sobreescribir los providers, lo que añade boilerplate a los archivos de prueba.
+- **Orden de ejecución implícito:** NestJS ejecuta los `APP_GUARD` en el orden en que se registran. Si en el futuro se agrega un tercer guard global, su posición en el array de providers afecta el comportamiento del sistema de forma no obvia para un desarrollador nuevo.
+- **Acoplamiento al decorador `@Public()`:** Cualquier endpoint que deba ser público (registro de pacientes, consulta de especialidades) depende de que el desarrollador recuerde agregar `@Public()`. Si se olvida, el endpoint queda inaccesible para usuarios no autenticados, lo que puede confundirse con un error del sistema en lugar de un problema de configuración.
