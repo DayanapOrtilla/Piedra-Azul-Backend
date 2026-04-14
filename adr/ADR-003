@@ -1,0 +1,81 @@
+# ADR-003: Uso de `QueryRunner` con transacción ACID para la actualización de disponibilidad de profesionales
+
+- **Fecha:** 14 de abril de 2026
+- **Estado:** En desarrollo
+
+---
+
+## Contexto
+
+La configuración de disponibilidad de un profesional (`Availability`) define los días de la semana y las franjas horarias en que ese profesional puede atender citas. Esta configuración es la base sobre la que el sistema genera los slots disponibles para el agendamiento autónomo de pacientes.
+
+Cuando el administrador actualiza la disponibilidad de un profesional (HU 3.2), el sistema necesita reemplazar completamente la configuración anterior con la nueva. La operación involucra dos pasos dependientes:
+
+1. **Eliminar** todos los registros de disponibilidad anteriores del profesional.
+2. **Insertar** los nuevos registros de disponibilidad.
+
+Si estos dos pasos se ejecutan como operaciones independientes (sin transacción), existe un escenario de falla crítico: si la inserción del paso 2 falla después de que el paso 1 ya se completó, el profesional queda sin ninguna disponibilidad configurada en la base de datos. Esto provocaría que el sistema no mostrara ningún slot disponible para ese profesional, bloqueando efectivamente el agendamiento de citas hasta que alguien detectara y corrigiera el problema manualmente.
+
+El documento de arquitectura describe el patrón Repository como uno de los patrones utilizados en el backend, pero **no documenta el uso de `QueryRunner` ni la estrategia transaccional** empleada para proteger esta operación crítica.
+
+---
+
+## Decisión
+
+Se implementó el método `update` del `AvailabilityService` utilizando un `QueryRunner` de TypeORM para envolver ambas operaciones en una transacción ACID única:
+
+```typescript
+// src/modules/availabilities/services/availability.service.ts
+async update(id: string, availabilities: UpdateAvailabilityDto[]): Promise<Availability[]> {
+  // 1. Validación lógica previa a la transacción
+  for (const day of availabilities) {
+    if (day.isActive) {
+      if (day.endTime <= day.startTime) {
+        throw new BadRequestException(
+          `Error en el día ${day.dayOfWeek}: La hora de fin debe ser posterior a la de inicio.`
+        );
+      }
+    }
+  }
+
+  // 2. Transacción: borrar lo viejo e insertar lo nuevo atómicamente
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    await queryRunner.manager.delete(Availability, { professional: { id } });
+    const newAvailabilities = availabilities.map(d =>
+      this.availabilityRepo.create({ ...d, professional: { id } })
+    );
+    const saved = await queryRunner.manager.save(newAvailabilities);
+    await queryRunner.commitTransaction();
+    return saved;
+  } catch (err) {
+    await queryRunner.rollbackTransaction();
+    throw err;
+  } finally {
+    await queryRunner.release(); // siempre se libera, incluso si hay error
+  }
+}
+```
+
+Adicionalmente, se incorporó una capa de validación lógica **antes** de iniciar la transacción para rechazar configuraciones inválidas (hora de fin menor o igual a hora de inicio en días activos) sin necesidad de abrir una conexión a la base de datos. Esta validación complementa las restricciones `@Check` declaradas directamente en la entidad `Availability` a nivel de esquema de base de datos.
+
+---
+
+## Consecuencias
+
+### Positivas
+
+- **Atomicidad garantizada:** La disponibilidad de un profesional nunca puede quedar en un estado intermedio (parcialmente eliminada o parcialmente insertada). Si cualquier parte de la operación falla, PostgreSQL revierte automáticamente ambos pasos mediante el `rollbackTransaction()`.
+- **Consistencia de datos en el agendamiento:** El sistema de generación de slots para el agendamiento autónomo (frontend Angular) siempre consulta una disponibilidad completa y coherente, sin riesgo de leer un estado intermedio corrupto.
+- **Cumplimiento del requisito no funcional de concurrencia:** El requisito establece que el sistema debe prevenir inconsistencias en la agenda de los profesionales. La transacción ACID es el mecanismo técnico que garantiza este cumplimiento.
+- **Liberación garantizada del `QueryRunner`:** El bloque `finally` asegura que la conexión al pool de PostgreSQL se devuelva siempre, evitando agotamiento de conexiones bajo cargas concurrentes.
+- **Validación en dos capas:** La validación lógica en la capa de servicio (`endTime > startTime`) y la restricción `@Check` en la entidad proveen defensa en profundidad, rechazando datos inválidos tanto antes de la transacción como a nivel de base de datos.
+
+### Negativas o riesgos
+
+- **Mayor complejidad de pruebas:** Testear código con `QueryRunner` requiere construir un mock detallado que simule `connect`, `startTransaction`, `commitTransaction`, `rollbackTransaction` y `release`. El archivo `availability.service.spec.ts` implementa este mock con una función `makeQueryRunner()`, pero añade boilerplate significativo comparado con testear un repositorio simple.
+- **Acoplamiento a TypeORM y `DataSource`:** El servicio depende directamente de `DataSource` de TypeORM para obtener el `QueryRunner`. Si en el futuro se migrara a otro ORM o se cambiara la estrategia de manejo de transacciones (por ejemplo, usando decoradores transaccionales de `typeorm-transactional`), este método requeriría reescritura completa.
+- **Ausencia de validación de solapamiento de horarios:** La implementación actual no verifica que dos registros de disponibilidad del mismo profesional no se solapen en el mismo día (por ejemplo, 08:00-10:00 y 09:00-12:00 para el mismo `dayOfWeek`). La arquitectura modular facilita agregar esta validación en el futuro sin modificar la estructura transaccional existente.
