@@ -1,4 +1,4 @@
-# ADR-001: Registro de JwtAuthGuard y RolesGuard como guards globales en APP_GUARD
+# ADR-002: Registro de JwtAuthGuard y RolesGuard como guards globales en APP_GUARD
 
 - **Fecha:** 14 de abril de 2026
 - **Estado:** Terminado
