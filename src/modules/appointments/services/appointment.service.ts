@@ -58,32 +58,42 @@ export class AppointmentService {
   }
 
   async findByUser(userId: string, role: string, date?: string, professionalId?: string): Promise<Appointment[]> {
-    const queryOptions: any = {
-    // 'professional.user' y 'patient.user' para que las relaciones estén completas
-    relations: ['patient', 'professional', 'patient.user', 'professional.user'],
-      order: { date: 'DESC' },
-      where: {}
-    };
+  const where: any = {};
 
-    //Filtrado por ROL (Seguridad)
-    if (role === UserRole.PACIENTE) {
-      queryOptions.where.patient = { user: { id: userId } };
-    } 
-    else if (role === UserRole.MEDICO || role === UserRole.TERAPISTA) {
-      queryOptions.where.professional = { user: { id: userId } };
-    }
-    // Si es ADMIN/AGENDADOR, queryOptions.where se queda vacío aquí (ve todo)
-
-    //Filtrado por FECHA
-    if (date) {
-      queryOptions.where.date = date; // TypeORM maneja el string 'YYYY-MM-DD' directo
-    }
-
-    // 3. Filtrado por PROFESIONAL
-    if (professionalId) {
-      queryOptions.where.professional = { id: professionalId };
-    }
-
-    return await this.appointmentRepo.find(queryOptions);
+  // Filtrado por ROL
+  if (role === UserRole.PACIENTE) {
+    where.patient = { user: { id: userId } };
+  } else if (role === UserRole.MEDICO || role === UserRole.TERAPISTA) {
+    where.professional = { user: { id: userId } };
   }
+
+  // Filtrado por PROFESIONAL — solo si es un UUID válido
+  if (professionalId && professionalId.length > 30) {
+    where.professional = { id: professionalId };
+  }
+
+  // Filtrado por FECHA — se agrega al final para no pisar el objeto professional
+  const finalWhere = date ? { ...where, date } : where;
+
+  return await this.appointmentRepo.find({
+    relations: ['patient', 'professional', 'patient.user', 'professional.user'],
+    order: { time: 'ASC' },
+    where: finalWhere,
+  });
+}
+  async exportToCsv(professionalId?: string, date?: string): Promise<string> {
+  const appointments = await this.findByUser('', 'ADMINISTRADOR', date, professionalId);
+
+  const header = 'Hora,Documento,Nombre Completo,Celular\n';
+
+  const rows = appointments.map(a => {
+    const hora      = a.time ?? '';
+    const documento = a.patient?.document ?? '';
+    const nombre    = `${a.patient?.firstName ?? ''} ${a.patient?.lastName ?? ''}`.trim();
+    const celular   = a.patient?.phone ?? '';
+    return `${hora},${documento},${nombre},${celular}`;
+  }).join('\n');
+
+  return header + rows;
+}
 }
