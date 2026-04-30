@@ -6,27 +6,27 @@ import { Patient } from "../../../modules/patients/entities/patient.entity";
 @Entity('users')
 export class User {
     @PrimaryGeneratedColumn('uuid')
-    id: string;
+    id!: string;
 
     @Column({ unique: true})
-    user: string;
+    user!: string;
 
     @Column({ select: false})
-    password: string;
+    password!: string;
 
     @Column({
         type: 'enum',
         enum: UserRole
     })
-    role: UserRole
+    role!: UserRole
 
     @Column({ default: true })
-    isActive: boolean;
+    isActive!: boolean;
 
     // Relaciones inversas
-    @OneToOne(() => Professional, (prof) => prof.user)
-    professional: Professional;
+    @OneToOne(() => Professional, (prof) => prof.user, { onDelete: "CASCADE"})
+    professional!: Professional;
 
-    @OneToOne(() => Patient, (patient) => patient.user)
-    patient: Patient;
+    @OneToOne(() => Patient, (patient) => patient.user, )
+    patient!: Patient;
 }

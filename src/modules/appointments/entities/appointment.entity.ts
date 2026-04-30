@@ -7,24 +7,24 @@ import { ProfessionalSpeciality } from '../../../shared/enum/professional-specia
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'date' })
-  date: Date;
+  date!: Date;
 
   @Column({ type: 'time' })
-  time: string;
+  time!: string;
 
   @Column({
     type: 'enum',
     enum: AppointmentStatus,
     default: AppointmentStatus.PENDIENTE,
    })
-  status: AppointmentStatus;
+  status!: AppointmentStatus;
 
   @ManyToOne(() => Professional, (professional) => professional.appointments)
-  professional: Professional;
+  professional!: Professional;
 
   @ManyToOne(() => Patient, (patient) => patient.appointments)
-  patient: Patient;
+  patient!: Patient;
 }

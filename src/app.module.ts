@@ -17,6 +17,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { AuthModule } from './modules/auth/auth.module';
+import { PatientRegistrationModule } from './application/patient-registration/patient-registration.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AuthModule } from './modules/auth/auth.module';
     AppointmentsModule,
     UsersModule,
     AuthModule,
+    PatientRegistrationModule
   ],
   controllers: [AppController],
   providers: [AppService,

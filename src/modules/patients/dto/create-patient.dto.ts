@@ -7,37 +7,37 @@ export class CreatePatientDto {
     @IsNotEmpty({message: 'El número de documento es obligatorio.'})
     @MaxLength(10, {message: 'El documento no puede exceder los 10 caracteres.'})
     @Matches(/^[0-9-]+$/, {message: 'El documento solo puede contener números y guiones.'})
-    document: string;
+    document!: string;
 
     @IsString()
     @IsNotEmpty()
-    firstName: string;
+    firstName!: string;
 
     @IsString()
     @IsNotEmpty()
-    lastName: string;
+    lastName!: string;
 
     @IsOptional()
     @IsDate()
     @Type(() => Date)
-    birthdate: Date;
+    birthdate!: Date;
 
     @IsString()
     @IsEnum(PatientGender, {
     message: 'El género debe ser MASCULINO, FEMENINO U OTRO.',
     })
-    gender: PatientGender;
+    gender!: PatientGender;
 
     @IsString()
-    phone: string;
+    phone!: string;
 
     @ValidateIf(o => o.email !== '')
     @IsOptional()
     @IsString()
     @IsEmail()
-    email: string;
+    email!: string;
 
     @IsBoolean()
-    isActive: boolean;
+    isActive!: boolean;
 
 }

@@ -8,6 +8,7 @@ import { User } from '../users/entities/user.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PatientRegistrationModule } from '../../application/patient-registration/patient-registration.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     TypeOrmModule.forFeature([User]),
     UsersModule,
     PassportModule,
+    PatientRegistrationModule,
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],

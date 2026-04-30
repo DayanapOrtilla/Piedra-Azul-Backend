@@ -27,6 +27,11 @@ export class PatientsController {
     return await this.patientsService.findOne(id);
   }
 
+  @Get('user')
+  async findByUser(@Param('user') userId: string){
+    return await this.patientsService.findByUser(userId);
+  }
+
   @Put(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string, 

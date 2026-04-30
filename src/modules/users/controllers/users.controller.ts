@@ -26,11 +26,17 @@ export class UsersController {
     return await this.usersService.findAllFiltered(role);
   }
 
+  @Post()
+  @Roles(UserRole.ADMINISTRADOR, UserRole.AGENDADOR)
+  async create(@Body() dto: any, @Req() req: any) {
+    return this.usersService.create(dto);
+  }
+
   // ADMINISTRADOR crea Staff / AGENDADOR crea Paciente con o sin User
   @Post('register-patient')
   @Roles(UserRole.ADMINISTRADOR, UserRole.AGENDADOR)
   async createAccount(@Body() dto: any, @Req() req: any) {
-    return this.usersService.registerPatient(dto);
+    return this.usersService.create(dto);
   }
 
   @Patch(':id/status')
