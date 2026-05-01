@@ -93,18 +93,20 @@ export class AppointmentService {
     where.professional = { user: { id: userId } };
   }
 
-  // Filtrado por PROFESIONAL — solo si es un UUID válido
+  // Filtrado por PROFESIONAL
   if (professionalId && professionalId.length > 30) {
     where.professional = { id: professionalId };
   }
 
-  // Filtrado por FECHA — se agrega al final para no pisar el objeto professional
-  const finalWhere = date ? { ...where, date } : where;
+  // Filtrado por FECHA
+  if (date) {
+    where.date = date;
+  }
 
   return await this.appointmentRepo.find({
     relations: ['patient', 'professional', 'patient.user', 'professional.user'],
     order: { time: 'ASC' },
-    where: finalWhere,
+    where,
   });
 }
   async exportToCsv(professionalId?: string, date?: string): Promise<string> {
