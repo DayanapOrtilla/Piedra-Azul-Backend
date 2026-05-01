@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, Put, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, Put, Patch, Delete, Req } from '@nestjs/common';
 import { PatientsService } from '../services/patients.service';
 import { CreatePatientDto } from '../dto/create-patient.dto';
 import { UpdatePatientDto } from '../dto/update-patient.dto';
+
 
 @Controller('patients')
 export class PatientsController {
@@ -21,16 +22,17 @@ export class PatientsController {
   async search(@Query('term') term: string) {
     return await this.patientsService.search(term);
   }
+  @Get('user')
+async findByUser(@Req() req: any) {
+  return await this.patientsService.findByUser(req.user.id);
+}
 
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return await this.patientsService.findOne(id);
   }
 
-  @Get('user')
-  async findByUser(@Param('user') userId: string){
-    return await this.patientsService.findByUser(userId);
-  }
+  
 
   @Put(':id')
   async update(

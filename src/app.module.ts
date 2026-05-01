@@ -13,15 +13,15 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { User } from './modules/users/entities/user.entity';
 import { UsersModule } from './modules/users/users.module';
-import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { AuthModule } from './modules/auth/auth.module';
 import { PatientRegistrationModule } from './application/patient-registration/patient-registration.module';
+import { KeycloakAuthGuard } from './modules/auth/guards/keycloak-auth.guard';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ 
+    ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
@@ -45,17 +45,18 @@ import { PatientRegistrationModule } from './application/patient-registration/pa
     AppointmentsModule,
     UsersModule,
     AuthModule,
-    PatientRegistrationModule
+    PatientRegistrationModule,
   ],
   controllers: [AppController],
-  providers: [AppService,
+  providers: [
+    AppService,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard
+      useClass: KeycloakAuthGuard,
     },
     {
-    provide: APP_GUARD,
-    useClass: RolesGuard,
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
