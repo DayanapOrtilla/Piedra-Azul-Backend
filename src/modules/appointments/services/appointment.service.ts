@@ -17,30 +17,56 @@ export class AppointmentService {
   ) {}
 
     async create(createAppointmentDto: CreateAppointmentDto): Promise<Appointment> {
-        const date = new Date(createAppointmentDto.date);
-        const dayOfWeek = date.getUTCDay();
-        const availability = await this.availabilityRepo.findOne({
-            where: {
-                professional: {id: createAppointmentDto.professionalId},
-                dayOfWeek: dayOfWeek,
-                isActive: true
-            }
-        })
+  const date = new Date(createAppointmentDto.date);
+  const dayOfWeek = date.getUTCDay();
 
-        if (!availability) {
-            throw new BadRequestException('El profesional no tiene agenda en el dia seleccionado');
-        }
-
-        //TODO: Validador de que la cita esté en el rango de disponibilidad
-
-        const newAppointment = this.appointmentRepo.create({
-            ...createAppointmentDto,
-            patient: {id: createAppointmentDto.patientId},
-            professional: { id: createAppointmentDto.professionalId},
-        });
-
-        return await this.appointmentRepo.save(newAppointment);
+  // Verificar disponibilidad del profesional ese día
+  const availability = await this.availabilityRepo.findOne({
+    where: {
+      professional: { id: createAppointmentDto.professionalId },
+      dayOfWeek: dayOfWeek,
+      isActive: true
     }
+  });
+
+  if (!availability) {
+    throw new BadRequestException('El profesional no tiene agenda en el día seleccionado');
+  }
+
+  // Verificar que no exista una cita en la misma fecha y hora para el mismo profesional
+  const existingAppointment = await this.appointmentRepo.findOne({
+    where: {
+      professional: { id: createAppointmentDto.professionalId },
+      date: createAppointmentDto.date,
+      time: createAppointmentDto.time,
+    }
+  });
+
+  if (existingAppointment) {
+    throw new BadRequestException('Ya existe una cita para este profesional en la fecha y hora seleccionadas');
+  }
+
+  // Verificar que el paciente no tenga ya una cita en la misma fecha y hora
+  const patientConflict = await this.appointmentRepo.findOne({
+    where: {
+      patient: { id: createAppointmentDto.patientId },
+      date: createAppointmentDto.date,
+      time: createAppointmentDto.time,
+    }
+  });
+
+  if (patientConflict) {
+    throw new BadRequestException('El paciente ya tiene una cita en la fecha y hora seleccionadas');
+  }
+
+  const newAppointment = this.appointmentRepo.create({
+    ...createAppointmentDto,
+    patient: { id: createAppointmentDto.patientId },
+    professional: { id: createAppointmentDto.professionalId },
+  });
+
+  return await this.appointmentRepo.save(newAppointment);
+}
 
   async findAll(): Promise<Appointment[]> {
     return await this.appointmentRepo.find({
