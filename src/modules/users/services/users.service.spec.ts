@@ -1,99 +1,180 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { UserRole } from '../../../shared/enum/user-role.enum';
+import * as bcrypt from 'bcrypt';
+
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
 }));
 
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import { UsersService } from './users.service';
-import { UserRole } from '../../../shared/enum/user-role.enum';
-
 describe('UsersService', () => {
   let service: UsersService;
   let userRepo: any;
-  let patientRepo: any;
 
   beforeEach(() => {
     userRepo = {
-      findOne: jest.fn(),
       create: jest.fn((data) => data),
       save: jest.fn(),
-      update: jest.fn(),
       find: jest.fn(),
-    };
-
-    patientRepo = {
       findOne: jest.fn(),
-      create: jest.fn((data) => data),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
-    service = new UsersService(userRepo, patientRepo);
-    (bcrypt.hash as jest.Mock).mockReset();
+    service = new UsersService(userRepo);
+
+    (bcrypt.hash as jest.Mock).mockResolvedValue('password-hasheado');
   });
 
-  it('debe registrar un paciente nuevo cuando no existe usuario ni paciente previo', async () => {
-    userRepo.findOne.mockResolvedValue(null);
-    patientRepo.findOne.mockResolvedValue(null);
-    (bcrypt.hash as jest.Mock).mockResolvedValue('hash123');
-    userRepo.save.mockResolvedValue({ id: 'u1', role: UserRole.PACIENTE });
-    patientRepo.save.mockResolvedValue({ id: 'p1' });
-
+  it('debe crear un usuario', async () => {
     const dto = {
-      firstName: 'Ana',
-      lastName: 'P�rez',
-      document: '1234567890',
-      type: 'FEMENINO' as any,
-      phone: '3001234567',
-      email: 'ana@mail.com',
-      password: 'segura123',
+      user: 'admin@piedra-azul.com',
+      password: 'admin123',
+      role: UserRole.ADMINISTRADOR,
+      isActive: true,
     };
 
-    const result = await service.registerPatient(dto as any);
+    userRepo.save.mockResolvedValue({
+      id: 'user-1',
+      ...dto,
+    });
 
-    expect(userRepo.create).toHaveBeenCalledWith({
-      user: '1234567890',
-      password: 'hash123',
+    const result = await service.create(dto as any);
+
+    expect(userRepo.create).toHaveBeenCalledWith(dto);
+    expect(userRepo.save).toHaveBeenCalledWith(dto);
+    expect(result.id).toBe('user-1');
+  });
+
+  it('debe listar usuarios activos filtrados por rol', async () => {
+    userRepo.find.mockResolvedValue([
+      {
+        id: 'user-1',
+        user: 'agenda@piedra-azul.com',
+        role: UserRole.AGENDADOR,
+        isActive: true,
+      },
+    ]);
+
+    const result = await service.findAllFiltered(UserRole.AGENDADOR);
+
+    expect(userRepo.find).toHaveBeenCalledWith({
+      where: {
+        role: UserRole.AGENDADOR,
+        isActive: true,
+      },
+      relations: ['patient', 'professional'],
+      select: ['id', 'user', 'role', 'isActive'],
+    });
+
+    expect(result).toHaveLength(1);
+  });
+
+  it('debe listar todos los usuarios activos cuando no se envía rol', async () => {
+    userRepo.find.mockResolvedValue([
+      {
+        id: 'user-1',
+        user: 'admin@piedra-azul.com',
+        role: UserRole.ADMINISTRADOR,
+        isActive: true,
+      },
+    ]);
+
+    const result = await service.findAllFiltered();
+
+    expect(userRepo.find).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+      },
+      relations: ['patient', 'professional'],
+      select: ['id', 'user', 'role', 'isActive'],
+    });
+
+    expect(result).toHaveLength(1);
+  });
+
+  it('debe actualizar el estado de un usuario existente', async () => {
+    const userToUpdate = {
+      id: 'user-1',
+      user: 'paciente@piedra-azul.com',
       role: UserRole.PACIENTE,
       isActive: true,
+    };
+
+    userRepo.findOne.mockResolvedValue(userToUpdate);
+    userRepo.save.mockResolvedValue({
+      ...userToUpdate,
+      isActive: false,
     });
-    expect(patientRepo.create).toHaveBeenCalled();
-    expect(result).toEqual({
-      message: 'Registro exitoso',
-      userId: 'u1',
-      role: UserRole.PACIENTE,
+
+    const result = await service.updateStatus('user-1', false, {
+      role: UserRole.ADMINISTRADOR,
     });
-  });
 
-  it('debe lanzar ConflictException si el documento ya existe como usuario', async () => {
-    userRepo.findOne.mockResolvedValue({ id: 'u1' });
+    expect(userRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+    });
 
-    await expect(
-      service.registerPatient({ document: '123', password: '12345678' } as any),
-    ).rejects.toThrow(ConflictException);
-  });
+    expect(userRepo.save).toHaveBeenCalledWith({
+      ...userToUpdate,
+      isActive: false,
+    });
 
-  it('debe lanzar BadRequestException si el paciente ya tiene usuario vinculado', async () => {
-    userRepo.findOne.mockResolvedValue(null);
-    patientRepo.findOne.mockResolvedValue({ id: 'p1', user: { id: 'u2' } });
-
-    await expect(
-      service.registerPatient({ document: '123', password: '12345678' } as any),
-    ).rejects.toThrow(BadRequestException);
-  });
-
-  it('debe impedir que un agendador desactive un usuario no paciente', async () => {
-    userRepo.findOne.mockResolvedValue({ id: 'u1', role: UserRole.ADMINISTRADOR });
-
-    await expect(
-      service.updateStatus('u1', false, { role: UserRole.AGENDADOR }),
-    ).rejects.toThrow(ForbiddenException);
+    expect(result.isActive).toBe(false);
   });
 
   it('debe lanzar NotFoundException si el usuario a actualizar no existe', async () => {
     userRepo.findOne.mockResolvedValue(null);
 
     await expect(
-      service.updateStatus('u1', false, { role: UserRole.ADMINISTRADOR }),
+      service.updateStatus('user-no-existe', false, {
+        role: UserRole.ADMINISTRADOR,
+      }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('debe impedir que un agendador desactive usuarios administrativos', async () => {
+    userRepo.findOne.mockResolvedValue({
+      id: 'user-admin',
+      user: 'admin@piedra-azul.com',
+      role: UserRole.ADMINISTRADOR,
+      isActive: true,
+    });
+
+    await expect(
+      service.updateStatus('user-admin', false, {
+        role: UserRole.AGENDADOR,
+      }),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(userRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('debe cambiar la contraseña de un usuario', async () => {
+    const result = await service.changePassword('user-1', 'NuevaPassword123');
+
+    expect(bcrypt.hash).toHaveBeenCalledWith('NuevaPassword123', 10);
+
+    expect(userRepo.update).toHaveBeenCalledWith('user-1', {
+      password: 'password-hasheado',
+    });
+
+    expect(result).toEqual({
+      message: 'Contraseña actualizada correctamente',
+    });
+  });
+
+  it('debe buscar un usuario por nombre de usuario o correo', async () => {
+    userRepo.findOne.mockResolvedValue({
+      id: 'user-1',
+      user: 'admin@piedra-azul.com',
+    });
+
+    const result = await service.findByUserName('admin@piedra-azul.com');
+
+    expect(userRepo.findOne).toHaveBeenCalledWith({
+      where: { user: 'admin@piedra-azul.com' },
+    });
+
+    expect(result.user).toBe('admin@piedra-azul.com');
   });
 });

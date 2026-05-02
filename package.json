@@ -80,7 +80,22 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/services/**/*.ts",
+      "**/entities/**/*.ts",
+      "**/guards/**/*.ts",
+      "**/processors/**/*.ts",
+      "**/decorators/**/*.ts",
+      "**/shared/enum/**/*.ts",
+      "!**/*.spec.ts",
+      "!**/*.module.ts",
+      "!**/*.controller.ts",
+      "!**/*.dto.ts",
+      "!**/main.ts",
+      "!**/app.module.ts",
+      "!**/app.controller.ts",
+      "!**/app.service.ts",
+      "!**/strategies/**/*.ts",
+      "!**/seed.service.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"

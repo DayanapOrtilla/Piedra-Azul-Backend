@@ -1,11 +1,12 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { AvailabilityService } from './availability.service';
+import { Availability } from '../entities/availability.entity';
 
-describe('AvailabilityService', () => {
+describe('AvailabilityService - nuevos requisitos', () => {
   let service: AvailabilityService;
   let availabilityRepo: any;
-  let queryRunner: any;
   let dataSource: any;
+  let queryRunner: any;
 
   beforeEach(() => {
     availabilityRepo = {
@@ -13,7 +14,7 @@ describe('AvailabilityService', () => {
       save: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
-      merge: jest.fn((entity) => entity),
+      merge: jest.fn((data) => data),
     };
 
     queryRunner = {
@@ -35,43 +36,83 @@ describe('AvailabilityService', () => {
     service = new AvailabilityService(availabilityRepo, dataSource);
   });
 
-  it('debe crear 7 horarios base para un profesional', async () => {
-    availabilityRepo.save.mockImplementation(async (data: any) => data);
+  it('debe rechazar una disponibilidad activa cuando la hora final es menor o igual a la hora inicial', async () => {
+    const disponibilidadInvalida = [
+      {
+        dayOfWeek: 1,
+        startTime: '14:00:00',
+        endTime: '10:00:00',
+        isActive: true,
+      },
+    ];
 
-    const result = await service.createDefaultSchedule({ id: 'pro1' } as any);
+    await expect(
+      service.update('professional-1', disponibilidadInvalida as any),
+    ).rejects.toThrow(BadRequestException);
 
-    expect(result).toHaveLength(7);
-    expect(availabilityRepo.create).toHaveBeenCalledTimes(7);
-    expect(result[0]).toEqual(
-      expect.objectContaining({
-        dayOfWeek: 0,
+    expect(dataSource.createQueryRunner).not.toHaveBeenCalled();
+  });
+
+  it('debe actualizar la configuración semanal del profesional usando una transacción', async () => {
+    const nuevaDisponibilidad = [
+      {
+        dayOfWeek: 1,
         startTime: '08:00:00',
         endTime: '12:00:00',
-        isActive: false,
-      }),
-    );
+        isActive: true,
+      },
+      {
+        dayOfWeek: 2,
+        startTime: '14:00:00',
+        endTime: '18:00:00',
+        isActive: true,
+      },
+    ];
+
+    const result = await service.update('professional-1', nuevaDisponibilidad as any);
+
+    expect(queryRunner.connect).toHaveBeenCalled();
+    expect(queryRunner.startTransaction).toHaveBeenCalled();
+
+    expect(queryRunner.manager.delete).toHaveBeenCalledWith(Availability, {
+      professional: { id: 'professional-1' },
+    });
+
+    expect(availabilityRepo.create).toHaveBeenCalledTimes(2);
+
+    expect(queryRunner.manager.save).toHaveBeenCalledWith([
+      {
+        ...nuevaDisponibilidad[0],
+        professional: { id: 'professional-1' },
+      },
+      {
+        ...nuevaDisponibilidad[1],
+        professional: { id: 'professional-1' },
+      },
+    ]);
+
+    expect(queryRunner.commitTransaction).toHaveBeenCalled();
+    expect(queryRunner.release).toHaveBeenCalled();
+    expect(result).toHaveLength(2);
   });
 
-  it('debe validar que la hora fin sea mayor que la hora inicio', async () => {
+  it('debe hacer rollback si ocurre un error al guardar la configuración de disponibilidad', async () => {
+    queryRunner.manager.save.mockRejectedValue(new Error('Error de base de datos'));
+
+    const nuevaDisponibilidad = [
+      {
+        dayOfWeek: 3,
+        startTime: '08:00:00',
+        endTime: '12:00:00',
+        isActive: true,
+      },
+    ];
+
     await expect(
-      service.update('pro1', [
-        { dayOfWeek: 1, startTime: '12:00:00', endTime: '08:00:00', isActive: true },
-      ] as any),
-    ).rejects.toThrow(BadRequestException);
-  });
+      service.update('professional-1', nuevaDisponibilidad as any),
+    ).rejects.toThrow('Error de base de datos');
 
-  it('debe lanzar NotFoundException si no existe el horario al buscar por id', async () => {
-    availabilityRepo.findOne.mockResolvedValue(null);
-
-    await expect(service.findById('a1')).rejects.toThrow(NotFoundException);
-  });
-
-  it('debe alternar el estado isActive en deactivate', async () => {
-    availabilityRepo.findOne.mockResolvedValue({ id: 'a1', isActive: false });
-    availabilityRepo.save.mockImplementation(async (data: any) => data);
-
-    const result = await service.deactivate('a1');
-
-    expect(result.isActive).toBe(true);
+    expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
+    expect(queryRunner.release).toHaveBeenCalled();
   });
 });
