@@ -1,0 +1,69 @@
+{
+  "realm": "clinica-piedra-azul",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "ADMINISTRADOR", "description": "Administrador total" },
+      { "name": "MEDICO", "description": "Personal médico" },
+      { "name": "PACIENTE", "description": "Pacientes de la clínica" },
+      { "name": "TERAPISTA", "description": "Terapistas de medicina alternativa" },
+      { "name": "AGENDADOR", "description": "Agendador de citas médicas" },
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "backend-api",
+      "name": "NestJS Backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "secret": "TU_SECRET_SUPER_SEGURO_AQUI",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["+"],
+      "defaultClientScopes": ["role_list", "profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "backend-api",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "frontend-app",
+      "name": "Angular Frontend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:4200/*"],
+      "webOrigins": ["http://localhost:4200"]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin_clinica",
+      "enabled": true,
+      "email": "admin@piedraazul.com",
+      "firstName": "Admin",
+      "lastName": "Principal",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ]
+}
