@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, Put, Patch, Delete, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, Put, Patch, Delete, Req, UseGuards } from '@nestjs/common';
 import { PatientsService } from '../services/patients.service';
 import { CreatePatientDto } from '../dto/create-patient.dto';
 import { UpdatePatientDto } from '../dto/update-patient.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'; 
 
 
 @Controller('patients')
@@ -23,6 +24,7 @@ export class PatientsController {
     return await this.patientsService.search(term);
   }
   @Get('user')
+
 async findByUser(@Req() req: any) {
   return await this.patientsService.findByUser(req.user.id);
 }

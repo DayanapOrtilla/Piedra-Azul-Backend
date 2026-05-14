@@ -18,6 +18,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PatientRegistrationModule } from './application/patient-registration/patient-registration.module';
 import { KeycloakAuthGuard } from './modules/auth/guards/keycloak-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+//import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
         database: config.get<string>('DB_NAME'),
         entities: [Professional, Patient, Appointment, Availability, User],
         synchronize: true,
+        //dropSchema: true,
       }),
     }),
     ProfessionalsModule,
@@ -50,7 +52,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
   controllers: [AppController],
   providers: [
     AppService,
-    {
+   {
       provide: APP_GUARD,
       useClass: KeycloakAuthGuard,
     },
@@ -58,6 +60,10 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
+    //{
+   // provide: APP_GUARD,
+    //useClass: RolesGuard,      
+   //},
   ],
 })
 export class AppModule {}

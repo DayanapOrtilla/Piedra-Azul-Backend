@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Req, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, Query, Res, UseGuards } from '@nestjs/common';
 import { AppointmentService } from '../services/appointment.service';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
 import type { Response } from 'express';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'; 
 
 @Controller('appointments')
 export class AppointmentsController {
