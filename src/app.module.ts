@@ -16,33 +16,15 @@ import { UsersModule } from './modules/users/users.module';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
 import { PatientRegistrationModule } from './application/patient-registration/patient-registration.module';
-import { 
-  KeycloakConnectModule, 
-  ResourceGuard, 
-  RoleGuard, 
-  AuthGuard,
-  PolicyEnforcementMode,
-  TokenValidation 
-} from 'nest-keycloak-connect';
-import { config } from 'process';
+import { KeycloakAuthGuard } from './modules/auth/guards/keycloak-auth.guard';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ 
+    ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
-    KeycloakConnectModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        authServerUrl: config.get<string>('KEYCLOAK_AUTH_SERVER_URL') || '',
-        realm: config.get<string>('KEYCLOAK_REALM') || '',
-        clientId: config.get<string>('KEYCLOAK_CLIENT_ID') || '',
-        secret: config.get<string>('KEYCLOAK_SECRET') || '',
-        policyEnforcement: PolicyEnforcementMode.PERMISSIVE,
-        tokenValidation: TokenValidation.ONLINE,
-      }),
-    })    ,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -63,21 +45,18 @@ import { config } from 'process';
     AppointmentsModule,
     UsersModule,
     AuthModule,
-    PatientRegistrationModule
+    PatientRegistrationModule,
   ],
   controllers: [AppController],
-  providers: [AppService,
+  providers: [
+    AppService,
     {
       provide: APP_GUARD,
-      useClass: AuthGuard,
+      useClass: KeycloakAuthGuard,
     },
     {
       provide: APP_GUARD,
-      useClass: ResourceGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RoleGuard,
+      useClass: RolesGuard,
     },
   ],
 })
