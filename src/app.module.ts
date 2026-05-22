@@ -18,6 +18,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PatientRegistrationModule } from './application/patient-registration/patient-registration.module';
 import { KeycloakAuthGuard } from './modules/auth/guards/keycloak-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { AppointmentHistory } from './modules/appointments/entities/appointment-history.entity';
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
-        entities: [Professional, Patient, Appointment, Availability, User],
+        entities: [Professional, Patient, Appointment, Availability, User, AppointmentHistory],
         synchronize: true,
       }),
     }),

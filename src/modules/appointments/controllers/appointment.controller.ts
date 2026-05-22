@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Req, Query, Res, Param, ParseUUIDPipe } from '@nestjs/common';
 import { AppointmentService } from '../services/appointment.service';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
 import type { Response } from 'express';
@@ -45,5 +45,25 @@ export class AppointmentsController {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('\uFEFF' + csv);
+  }
+
+  @Patch(':id/reschedule')
+  async reschedule(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { newDate: string; newTime: string; reason?: string },
+    @Req() req,
+  ) {
+    return await this.appointmentService.reschedule(
+      id,
+      body.newDate,
+      body.newTime,
+      req.user.id,
+      body.reason,
+    );
+  }
+
+  @Get(':id/history')
+  async getHistory(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.appointmentService.getHistory(id);
   }
 }
