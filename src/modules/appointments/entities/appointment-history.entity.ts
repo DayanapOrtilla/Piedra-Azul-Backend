@@ -22,8 +22,8 @@ export class AppointmentHistory {
   @Column({ type: 'time' })
   newTime!: string;
 
-  @ManyToOne(() => User, { nullable: true })
-  rescheduledBy!: User;
+ @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+ rescheduledBy!: User | null;
 
   @CreateDateColumn()
   createdAt!: Date;

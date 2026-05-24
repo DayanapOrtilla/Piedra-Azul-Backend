@@ -116,15 +116,14 @@ export class AppointmentService {
 
     // Guardar historial
     const history = this.historyRepo.create({
-      appointment: { id },
-      previousDate: appointment.date,
-      previousTime: appointment.time,
-      newDate: newDate as any,
-      newTime,
-      rescheduledBy: { id: rescheduledById },
-      reason,
-    });
-    await this.historyRepo.save(history);
+  appointment: { id },
+  previousDate: appointment.date,
+  previousTime: appointment.time,
+  newDate: newDate as any,
+  newTime,
+  reason,
+});
+await this.historyRepo.save(history);
 
     // Actualizar la cita
     appointment.date = newDate as any;
