@@ -1,8 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
 import { Professional } from '../../professionals/entities/professional.entity';
 import { Patient } from '../../patients/entities/patient.entity';
 import { AppointmentStatus } from '../../../shared/enum/appointment-status.enum';
-import { ProfessionalSpeciality } from '../../../shared/enum/professional-speciality.enum';
+import { AppointmentHistory } from './appointment-history.entity';
 
 @Entity('appointments')
 export class Appointment {
@@ -19,7 +19,7 @@ export class Appointment {
     type: 'enum',
     enum: AppointmentStatus,
     default: AppointmentStatus.PENDIENTE,
-   })
+  })
   status!: AppointmentStatus;
 
   @ManyToOne(() => Professional, (professional) => professional.appointments)
@@ -27,4 +27,7 @@ export class Appointment {
 
   @ManyToOne(() => Patient, (patient) => patient.appointments)
   patient!: Patient;
+
+  @OneToMany(() => AppointmentHistory, (history) => history.appointment)
+  history!: AppointmentHistory[];
 }

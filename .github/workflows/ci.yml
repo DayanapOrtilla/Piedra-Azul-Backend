@@ -1,0 +1,56 @@
+name: CI - Piedrazul Backend
+
+on:
+  push:
+    branches: [ main, tercer-corte ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: piedra_azul
+          POSTGRES_PASSWORD: piedra_azul_test
+          POSTGRES_DB: piedra_azul_db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm install --legacy-peer-deps
+
+      - name: Compilar proyecto
+        run: npm run build
+
+      - name: Ejecutar pruebas
+        run: npm run test -- --passWithNoTests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USERNAME: piedra_azul
+          DB_PASSWORD: piedra_azul_test
+          DB_NAME: piedra_azul_db
+          JWT_SECRET: jafjhbfbv8r34cs
+          JWT_EXPIRES_IN: 8h
+          KEYCLOAK_URL: http://localhost:8080
+          KEYCLOAK_REALM: piedrazul
+          KEYCLOAK_CLIENT_ID: piedrazul-app
