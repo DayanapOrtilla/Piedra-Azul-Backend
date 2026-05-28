@@ -17,30 +17,56 @@ export class AppointmentService {
   ) {}
 
     async create(createAppointmentDto: CreateAppointmentDto): Promise<Appointment> {
-        const date = new Date(createAppointmentDto.date);
-        const dayOfWeek = date.getUTCDay();
-        const availability = await this.availabilityRepo.findOne({
-            where: {
-                professional: {id: createAppointmentDto.professionalId},
-                dayOfWeek: dayOfWeek,
-                isActive: true
-            }
-        })
+  const date = new Date(createAppointmentDto.date);
+  const dayOfWeek = date.getUTCDay();
 
-        if (!availability) {
-            throw new BadRequestException('El profesional no tiene agenda en el dia seleccionado');
-        }
-
-        //TODO: Validador de que la cita esté en el rango de disponibilidad
-
-        const newAppointment = this.appointmentRepo.create({
-            ...createAppointmentDto,
-            patient: {id: createAppointmentDto.patientId},
-            professional: { id: createAppointmentDto.professionalId},
-        });
-
-        return await this.appointmentRepo.save(newAppointment);
+  // Verificar disponibilidad del profesional ese día
+  const availability = await this.availabilityRepo.findOne({
+    where: {
+      professional: { id: createAppointmentDto.professionalId },
+      dayOfWeek: dayOfWeek,
+      isActive: true
     }
+  });
+
+  if (!availability) {
+    throw new BadRequestException('El profesional no tiene agenda en el día seleccionado');
+  }
+
+  // Verificar que no exista una cita en la misma fecha y hora para el mismo profesional
+  const existingAppointment = await this.appointmentRepo.findOne({
+    where: {
+      professional: { id: createAppointmentDto.professionalId },
+      date: createAppointmentDto.date,
+      time: createAppointmentDto.time,
+    }
+  });
+
+  if (existingAppointment) {
+    throw new BadRequestException('Ya existe una cita para este profesional en la fecha y hora seleccionadas');
+  }
+
+  // Verificar que el paciente no tenga ya una cita en la misma fecha y hora
+  const patientConflict = await this.appointmentRepo.findOne({
+    where: {
+      patient: { id: createAppointmentDto.patientId },
+      date: createAppointmentDto.date,
+      time: createAppointmentDto.time,
+    }
+  });
+
+  if (patientConflict) {
+    throw new BadRequestException('El paciente ya tiene una cita en la fecha y hora seleccionadas');
+  }
+
+  const newAppointment = this.appointmentRepo.create({
+    ...createAppointmentDto,
+    patient: { id: createAppointmentDto.patientId },
+    professional: { id: createAppointmentDto.professionalId },
+  });
+
+  return await this.appointmentRepo.save(newAppointment);
+}
 
   async findAll(): Promise<Appointment[]> {
     return await this.appointmentRepo.find({
@@ -58,32 +84,44 @@ export class AppointmentService {
   }
 
   async findByUser(userId: string, role: string, date?: string, professionalId?: string): Promise<Appointment[]> {
-    const queryOptions: any = {
-    // 'professional.user' y 'patient.user' para que las relaciones estén completas
-    relations: ['patient', 'professional', 'patient.user', 'professional.user'],
-      order: { date: 'DESC' },
-      where: {}
-    };
+  const where: any = {};
 
-    //Filtrado por ROL (Seguridad)
-    if (role === UserRole.PACIENTE) {
-      queryOptions.where.patient = { user: { id: userId } };
-    } 
-    else if (role === UserRole.MEDICO || role === UserRole.TERAPISTA) {
-      queryOptions.where.professional = { user: { id: userId } };
-    }
-    // Si es ADMIN/AGENDADOR, queryOptions.where se queda vacío aquí (ve todo)
-
-    //Filtrado por FECHA
-    if (date) {
-      queryOptions.where.date = date; // TypeORM maneja el string 'YYYY-MM-DD' directo
-    }
-
-    // 3. Filtrado por PROFESIONAL
-    if (professionalId) {
-      queryOptions.where.professional = { id: professionalId };
-    }
-
-    return await this.appointmentRepo.find(queryOptions);
+  // Filtrado por ROL
+  if (role === UserRole.PACIENTE) {
+    where.patient = { user: { id: userId } };
+  } else if (role === UserRole.MEDICO || role === UserRole.TERAPISTA) {
+    where.professional = { user: { id: userId } };
   }
+
+  // Filtrado por PROFESIONAL
+  if (professionalId && professionalId.length > 30) {
+    where.professional = { id: professionalId };
+  }
+
+  // Filtrado por FECHA
+  if (date) {
+    where.date = date;
+  }
+
+  return await this.appointmentRepo.find({
+    relations: ['patient', 'professional', 'patient.user', 'professional.user'],
+    order: { time: 'ASC' },
+    where,
+  });
+}
+  async exportToCsv(professionalId?: string, date?: string): Promise<string> {
+  const appointments = await this.findByUser('', 'ADMINISTRADOR', date, professionalId);
+
+  const header = 'Hora,Documento,Nombre Completo,Celular\n';
+
+  const rows = appointments.map(a => {
+    const hora      = a.time ?? '';
+    const documento = a.patient?.document ?? '';
+    const nombre    = `${a.patient?.firstName ?? ''} ${a.patient?.lastName ?? ''}`.trim();
+    const celular   = a.patient?.phone ?? '';
+    return `${hora},${documento},${nombre},${celular}`;
+  }).join('\n');
+
+  return header + rows;
+}
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Professional } from '../entities/professional.entity';
@@ -7,6 +7,7 @@ import { CreateProfessionalDto } from '../dto/create-professional.dto';
 import { User } from '../../../modules/users/entities/user.entity';
 import { UserRole } from '../../../shared/enum/user-role.enum';
 import * as bcrypt from 'bcrypt';
+import { UpdateProfessionalDto } from '../dto/update-professional.dto';
 
 
 @Injectable()
@@ -89,5 +90,32 @@ export class ProfessionalsService {
       where: { id },
       relations: ['availabilities'] // Trae el cuadro de horarios (Lunes a Domingo)
     });
+  }
+
+  async update(id: string, updateProfessionalDto: UpdateProfessionalDto) {
+    const patient = await this.professionalRepo.preload({
+      id: id,
+      ...updateProfessionalDto,
+    });
+
+    if (!patient) throw new NotFoundException(`Profesional con ID ${id} no encontrado`);
+    
+    return await this.professionalRepo.save(patient);
+  }
+
+  async remove(id: string){
+    const professional = await this.professionalRepo.findOne({
+      where: { id },
+      relations: ['availabilities', 'user'] // Trae el cuadro de horarios (Lunes a Domingo)
+    });
+    
+    if (!professional) {
+      throw new NotFoundException(`No se pudo eliminar: el profesional no existe.`);
+    }
+
+    const user = professional.user;
+
+    await this.professionalRepo.remove(professional);
+    return this.userRepo.remove(user);
   }
 }

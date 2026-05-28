@@ -1,16 +1,19 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { Patient } from '../entities/patient.entity';
 import { CreatePatientDto } from '../dto/create-patient.dto';
-import { AppointmentService } from '../../../modules/appointments/services/appointment.service';
 import { UpdatePatientDto } from '../dto/update-patient.dto';
+import { User } from '../../../modules/users/entities/user.entity';
 
 @Injectable()
 export class PatientsService {
   constructor(
     @InjectRepository(Patient)
     private readonly patientRepo: Repository<Patient>,
+
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) {}
 
   async create(createPatientDto: CreatePatientDto): Promise<Patient> {
@@ -26,30 +29,59 @@ export class PatientsService {
   async findAll(): Promise<Patient[]> {
     return await this.patientRepo.find({
       order: {
-        document: 'ASC', // Opcional: ordenarlos alfabéticamente
+        document: 'ASC',
       },
     });
   }
 
   async update(id: string, updatePatientDto: UpdatePatientDto) {
-  const patient = await this.patientRepo.preload({
-    id: id,
-    ...updatePatientDto,
-  });
+    const patient = await this.patientRepo.preload({
+      id: id,
+      ...updatePatientDto,
+    });
 
-  if (!patient) throw new NotFoundException(`Paciente con ID ${id} no encontrado`);
-  
-  return await this.patientRepo.save(patient);
-}
+    if (!patient) throw new NotFoundException(`Paciente con ID ${id} no encontrado`);
+    
+    return await this.patientRepo.save(patient);
+  }
 
   async findOne(id: string): Promise<Patient | null> {
     return await this.patientRepo.findOne({
       where: { id },
-      relations: ['appointments'] // Trae las citas del paciente
+      relations: ['appointments', ]
     });
   }
 
-  async search(term: string) {
+  async findByDocument(document: string): Promise<Patient | null> {
+    return await this.patientRepo.findOne({
+      where: { document },
+    });
+  }
+
+  async findByUser(user: string): Promise<Patient | null> {
+    return await this.patientRepo.findOne({
+      where: {user: {id: user}},
+    });
+  }
+
+  async linkUser(patientId: string, userId: string): Promise <Patient> {
+    const [patient, user] = await Promise.all([
+      this.patientRepo.findOne({ where: { id: patientId } }),
+      this.userRepo.findOne({ where: { id: userId } })
+    ]);
+
+    if (!patient) { throw new NotFoundException(`El paciente con ID ${patientId} no existe.`); }
+
+    if (!user) { throw new NotFoundException(`El usuario con ID ${userId} no existe.`); }
+
+    if (patient.user) { throw new BadRequestException('El paciente ya tiene un usuario vinculado.'); }
+
+    patient.user = user;
+    
+    return await this.patientRepo.save(patient);
+  }
+
+  async search(term: string): Promise<Patient[]>{
     if (!term) return this.findAll();
 
     return await this.patientRepo.find({

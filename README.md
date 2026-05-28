@@ -4,7 +4,7 @@ Backend API para el sistema de gestión de citas médicas "Piedra Azul", desarro
 
 ## Descripción
 
-Este proyecto es una aplicación backend construida con NestJS que proporciona una API REST para gestionar citas médicas, incluyendo módulos para profesionales, pacientes, citas y disponibilidades.
+Este proyecto es una aplicación backend construida con NestJS que proporciona una API REST para gestionar citas médicas, incluyendo módulos para profesionales, pacientes, citas y disponibilidades entre otras.
 
 ## Tecnologías Utilizadas
 

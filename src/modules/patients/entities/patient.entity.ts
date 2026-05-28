@@ -7,43 +7,43 @@ import { User } from '../../../modules/users/entities/user.entity';
 @Check(`"document" ~ '^[0-9-]+$'`)
 export class Patient {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ 
     type: 'varchar',
     length: 10,
     unique: true 
   })
-  document: string;
+  document!: string;
 
   @Column()
-  firstName: string;
+  firstName!: string;
 
   @Column()
-  lastName: string;
+  lastName!: string;
 
   @Column ({nullable: true})
-  birthdate: Date;
+  birthdate!: Date;
 
   @Column({
     type: 'enum',
     enum: PatientGender,
   })
-  gender: PatientGender;
+  gender!: PatientGender;
 
   @Column()
-  phone: string;
+  phone!: string;
 
   @Column({ nullable: true})
   email?: string;
 
   @Column ( {default: true})
-  isActive: boolean;
+  isActive!: boolean;
 
-  @OneToOne(() => User, (user) => user.patient, { cascade: true, nullable: true})
-  @JoinColumn()
+  @OneToOne(() => User, (user) => user.patient, { cascade: true, nullable: true, onDelete: "CASCADE"})
+  @JoinColumn({ name: 'userId' })
   user?: User;
   
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
-  appointments: Appointment[];
+  appointments!: Appointment[];
 }

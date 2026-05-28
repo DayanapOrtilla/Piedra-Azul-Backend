@@ -8,43 +8,44 @@ import { User } from '../../../modules/users/entities/user.entity';
 @Entity('professionals')
 export class Professional {
     @PrimaryGeneratedColumn('uuid')
-    id: string;
+    id!: string;
 
     @Column()
-    firstName: string;
+    firstName!: string;
 
     @Column()
-    lastName: string;
+    lastName!: string;
 
     @Column({
         type: 'enum',
         enum: ProfessionalType,
         default: ProfessionalType.MEDICO
     })
-    type: ProfessionalType;
+    type!: ProfessionalType;
 
     @Column({
         type: 'enum',
         enum: ProfessionalSpeciality,
     })
-    specialty: ProfessionalSpeciality;
+    specialty!: ProfessionalSpeciality;
 
     @Column({ default: 20 })
-    intervalMinutes: number;
+    intervalMinutes!: number;
 
     @Column( {unique: true})
-    email: string;
+    email!: string;
 
     @Column()
-    isActive: boolean;
+    isActive!: boolean;
 
-    @OneToOne(() => User, (user) => user.professional, { cascade: true})
-    @JoinColumn()
-    user: User;
+    @OneToOne(() => User, (user) => user.professional, 
+    { cascade: true})
+    @JoinColumn({ name: 'userId'})
+    user!: User;
 
     @OneToMany(() => Appointment, (appointment) => appointment.professional)
-    appointments: Appointment[];
+    appointments!: Appointment[];
 
     @OneToMany(() => Availability, (availability) => availability.professional)
-    availabilities: Availability[];
+    availabilities!: Availability[];
 }

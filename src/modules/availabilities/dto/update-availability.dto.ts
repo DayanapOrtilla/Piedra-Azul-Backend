@@ -5,16 +5,16 @@ export class UpdateAvailabilityDto {
   @IsNotEmpty()
   @Min(0)
   @Max(6)
-  dayOfWeek: number;
+  dayOfWeek!: number;
 
   @IsString()
   @IsNotEmpty()
-  startTime: string;
+  startTime!: string;
 
   @IsString()
   @IsNotEmpty()
-  endTime: string;
+  endTime!: string;
 
   @IsBoolean()
-  isActive: boolean;
+  isActive!: boolean;
 }

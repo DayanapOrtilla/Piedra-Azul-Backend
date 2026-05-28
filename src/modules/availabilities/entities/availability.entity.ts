@@ -6,24 +6,24 @@ import { Professional } from '../../professionals/entities/professional.entity';
 @Check( `"startTime" < "endTime"`)
 export class Availability {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  dayOfWeek: number; // 0 para Domingo, 1 para Lunes, etc.
+  dayOfWeek!: number; // 0 para Domingo, 1 para Lunes, etc.
 
   @Column({ type: 'time' })
-  startTime: string; // Ejemplo: "08:00:00"
+  startTime!: string; // Ejemplo: "08:00:00"
 
   @Column({ type: 'time' })
-  endTime: string;   // Ejemplo: "12:00:00"
+  endTime!: string;   // Ejemplo: "12:00:00"
 
   @Column({ default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   // Relación: Muchas disponibilidades pertenecen a un solo profesional
   @ManyToOne(() => Professional, (professional) => professional.availabilities, {
     onDelete: 'CASCADE', // Si borras al profesional, se borra su agenda
   })
   @JoinColumn({ name: 'professionalId' }) // Esto crea la columna de unión en la DB
-  professional: Professional;
+  professional!: Professional;
 }
