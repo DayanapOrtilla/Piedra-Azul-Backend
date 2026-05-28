@@ -1,14 +1,17 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService= app.get(ConfigService);
+  const allowedOrigins = configService.get<string>('ALLOWED_ORIGINS');
 
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: 'http://localhost:4200',
+    origin: allowedOrigins ? allowedOrigins.split(',') : 'http://localhost:4200',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     allowedHeaders: [
