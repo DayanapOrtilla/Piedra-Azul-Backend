@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, Controller, Post, Body } from '@nestjs/common';
+import { INestApplication, ValidationPipe, Controller, Post, Body, BadRequestException } from '@nestjs/common';
 import request from 'supertest';
 
 @Controller('register')
@@ -7,7 +7,7 @@ class TestController {
   @Post()
   register(@Body() body: any) {
     if (!body.email || !body.password) {
-      throw new Error('Bad Request');
+      throw new BadRequestException();
     }
     return { message: 'ok' };
   }
@@ -40,7 +40,7 @@ describe('Auth Register (e2e)', () => {
     return request(app.getHttpServer())
       .post('/register')
       .send({})
-      .expect(500);
+      .expect(400);
   });
 
   afterAll(async () => {
