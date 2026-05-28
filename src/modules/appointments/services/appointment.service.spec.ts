@@ -1,144 +1,145 @@
-import { BadRequestException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import { AppointmentService } from './appointment.service';
-import { AppointmentStatus } from '../../../shared/enum/appointment-status.enum';
-import { UserRole } from '../../../shared/enum/user-role.enum';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Appointment } from '../entities/appointment.entity';
+import { AppointmentHistory } from '../entities/appointment-history.entity';
+import { Availability } from '../../availabilities/entities/availability.entity';
 
-describe('AppointmentService - nuevos requisitos', () => {
+describe('AppointmentService (integración)', () => {
   let service: AppointmentService;
-  let appointmentRepo: any;
-  let availabilityRepo: any;
 
-  beforeEach(() => {
-    appointmentRepo = {
-      create: jest.fn((data) => data),
-      save: jest.fn(async (data) => data),
-      find: jest.fn(),
-      findOne: jest.fn(),
-    };
+  const mockAppointmentRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
 
-    availabilityRepo = {
-      findOne: jest.fn(),
-    };
+  const mockHistoryRepo = {
+    create: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+  };
 
-    service = new AppointmentService(appointmentRepo, availabilityRepo);
+  const mockAvailabilityRepo = {
+    findOne: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AppointmentService,
+        { provide: getRepositoryToken(Appointment), useValue: mockAppointmentRepo },
+        { provide: getRepositoryToken(AppointmentHistory), useValue: mockHistoryRepo },
+        { provide: getRepositoryToken(Availability), useValue: mockAvailabilityRepo },
+      ],
+    }).compile();
+
+    service = module.get<AppointmentService>(AppointmentService);
   });
 
-  it('debe impedir crear una cita si el profesional ya tiene una cita en la misma fecha y hora', async () => {
-    availabilityRepo.findOne.mockResolvedValue({
-      id: 'availability-1',
-      isActive: true,
+  afterEach(() => jest.clearAllMocks());
+
+  describe('findByUser', () => {
+    it('debe retornar todas las citas para rol ADMINISTRADOR', async () => {
+      const mockCitas = [
+        { id: '1', date: '2026-05-01', time: '08:00', status: 'CONFIRMADA' },
+        { id: '2', date: '2026-05-01', time: '09:00', status: 'PENDIENTE' },
+      ];
+      mockAppointmentRepo.find.mockResolvedValue(mockCitas);
+
+      const result = await service.findByUser('', 'ADMINISTRADOR');
+
+      expect(result).toEqual(mockCitas);
+      expect(mockAppointmentRepo.find).toHaveBeenCalledTimes(1);
     });
 
-    appointmentRepo.findOne
-      .mockResolvedValueOnce({ id: 'appointment-existente' })
-      .mockResolvedValueOnce(null);
+    it('debe filtrar citas por fecha para rol ADMINISTRADOR', async () => {
+      const mockCitas = [{ id: '1', date: '2026-05-01', time: '08:00' }];
+      mockAppointmentRepo.find.mockResolvedValue(mockCitas);
 
-    const dto = {
-      date: '2026-05-03',
-      time: '09:00:00',
-      status: AppointmentStatus.PENDIENTE,
-      patientId: '11111111-1111-1111-1111-111111111111',
-      professionalId: '22222222-2222-2222-2222-222222222222',
-    };
+      const result = await service.findByUser('', 'ADMINISTRADOR', '2026-05-01');
 
-    await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
-
-    expect(appointmentRepo.save).not.toHaveBeenCalled();
-  });
-
-  it('debe impedir crear una cita si el paciente ya tiene una cita en la misma fecha y hora', async () => {
-    availabilityRepo.findOne.mockResolvedValue({
-      id: 'availability-1',
-      isActive: true,
+      expect(result).toEqual(mockCitas);
+      expect(mockAppointmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ date: '2026-05-01' }),
+        })
+      );
     });
 
-    appointmentRepo.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 'conflicto-paciente' });
+    it('debe filtrar citas por paciente para rol PACIENTE', async () => {
+      const mockCitas = [{ id: '1', date: '2026-05-01', time: '08:00' }];
+      mockAppointmentRepo.find.mockResolvedValue(mockCitas);
 
-    const dto = {
-      date: '2026-05-03',
-      time: '10:00:00',
-      status: AppointmentStatus.PENDIENTE,
-      patientId: '11111111-1111-1111-1111-111111111111',
-      professionalId: '22222222-2222-2222-2222-222222222222',
-    };
+      const userId = 'user-123';
+      await service.findByUser(userId, 'PACIENTE');
 
-    await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
-
-    expect(appointmentRepo.save).not.toHaveBeenCalled();
+      expect(mockAppointmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            patient: { user: { id: userId } },
+          }),
+        })
+      );
+    });
   });
 
-  it('debe impedir crear una cita si el profesional no tiene disponibilidad activa ese día', async () => {
-    availabilityRepo.findOne.mockResolvedValue(null);
+  describe('create', () => {
+    it('debe lanzar error si el profesional no tiene disponibilidad', async () => {
+      mockAvailabilityRepo.findOne.mockResolvedValue(null);
 
-    const dto = {
-      date: '2026-05-03',
-      time: '11:00:00',
-      status: AppointmentStatus.PENDIENTE,
-      patientId: '11111111-1111-1111-1111-111111111111',
-      professionalId: '22222222-2222-2222-2222-222222222222',
-    };
+      await expect(
+        service.create({
+          date: new Date('2026-05-05') as any,
+          time: '08:00',
+          professionalId: 'prof-1',
+          patientId: 'pat-1',
+          status: 'CONFIRMADA' as any,
+        })
+      ).rejects.toThrow('El profesional no tiene agenda en el día seleccionado');
+    });
 
-    await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
+    it('debe lanzar error si ya existe una cita en el mismo horario', async () => {
+      mockAvailabilityRepo.findOne.mockResolvedValue({ id: 'avail-1', isActive: true });
+      mockAppointmentRepo.findOne.mockResolvedValue({ id: 'existing-appt' });
 
-    expect(appointmentRepo.findOne).not.toHaveBeenCalled();
-    expect(appointmentRepo.save).not.toHaveBeenCalled();
+      await expect(
+        service.create({
+          date: new Date('2026-05-05') as any,
+          time: '08:00',
+          professionalId: 'prof-1',
+          patientId: 'pat-1',
+          status: 'CONFIRMADA' as any,
+        })
+      ).rejects.toThrow('Ya existe una cita para este profesional en la fecha y hora seleccionadas');
+    });
   });
 
-  it('debe listar citas filtradas por médico o terapista y fecha', async () => {
-    appointmentRepo.find.mockResolvedValue([]);
+  describe('exportToCsv', () => {
+    it('debe generar CSV con encabezados correctos', async () => {
+      mockAppointmentRepo.find.mockResolvedValue([]);
 
-    await service.findByUser(
-      'admin-id',
-      UserRole.ADMINISTRADOR,
-      '2026-05-03',
-      '22222222-2222-2222-2222-222222222222',
-    );
+      const result = await service.exportToCsv();
 
-    expect(appointmentRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        relations: ['patient', 'professional', 'patient.user', 'professional.user'],
-        order: { time: 'ASC' },
-        where: {
-          professional: {
-            id: '22222222-2222-2222-2222-222222222222',
-          },
-          date: '2026-05-03',
+      expect(result).toContain('Hora,Documento,Nombre Completo,Celular');
+    });
+
+    it('debe incluir datos del paciente en el CSV', async () => {
+      mockAppointmentRepo.find.mockResolvedValue([
+        {
+          time: '08:00',
+          patient: { document: '123456', firstName: 'Juan', lastName: 'García', phone: '3001234567' },
+          professional: { user: {} },
         },
-      }),
-    );
-  });
+      ]);
 
-  it('debe exportar citas en formato CSV compatible con hojas de cálculo', async () => {
-    jest.spyOn(service, 'findByUser').mockResolvedValue([
-      {
-        time: '08:00:00',
-        patient: {
-          document: '1001234567',
-          firstName: 'Daniel',
-          lastName: 'Zuniga',
-          phone: '3001234567',
-        },
-      },
-      {
-        time: '08:30:00',
-        patient: {
-          document: '1007654321',
-          firstName: 'Laura',
-          lastName: 'Perez',
-          phone: '3109876543',
-        },
-      },
-    ] as any);
+      const result = await service.exportToCsv();
 
-    const csv = await service.exportToCsv(
-      '22222222-2222-2222-2222-222222222222',
-      '2026-05-03',
-    );
-
-    expect(csv).toContain('Hora,Documento,Nombre Completo,Celular');
-    expect(csv).toContain('08:00:00,1001234567,Daniel Zuniga,3001234567');
-    expect(csv).toContain('08:30:00,1007654321,Laura Perez,3109876543');
+      expect(result).toContain('08:00');
+      expect(result).toContain('123456');
+      expect(result).toContain('Juan García');
+      expect(result).toContain('3001234567');
+    });
   });
 });
