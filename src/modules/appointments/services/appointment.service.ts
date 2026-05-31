@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+﻿import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Appointment } from '../entities/appointment.entity';
@@ -33,7 +33,7 @@ export class AppointmentService {
     });
 
     if (!availability) {
-      throw new BadRequestException('El profesional no tiene agenda en el día seleccionado');
+      throw new BadRequestException('El profesional no tiene agenda en el dÃ­a seleccionado');
     }
 
     const existingAppointment = await this.appointmentRepo.findOne({
@@ -98,7 +98,7 @@ export class AppointmentService {
     });
 
     if (!availability) {
-      throw new BadRequestException('El profesional no tiene agenda en el día seleccionado');
+      throw new BadRequestException('El profesional no tiene agenda en el dÃ­a seleccionado');
     }
 
     // Verificar que no haya conflicto con otra cita
@@ -180,14 +180,67 @@ await this.historyRepo.save(history);
   async exportToCsv(professionalId?: string, date?: string): Promise<string> {
     const appointments = await this.findByUser('', 'ADMINISTRADOR', date, professionalId);
 
-    const header = 'Hora,Documento,Nombre Completo,Celular\n';
+    const escapeCsv = (value: unknown): string => {
+      const text = value === null || value === undefined ? '' : String(value);
+      const escaped = text.replace(/"/g, '""');
 
-    const rows = appointments.map(a => {
-      const hora      = a.time ?? '';
+      if (/[",\n\r]/.test(escaped)) {
+        return `"${escaped}"`;
+      }
+
+      return escaped;
+    };
+
+    const formatDate = (value: unknown): string => {
+      if (!value) return '';
+
+      if (value instanceof Date) {
+        return value.toISOString().substring(0, 10);
+      }
+
+      const text = String(value);
+      return text.includes('T') ? text.substring(0, 10) : text;
+    };
+
+    const formatTime = (value: unknown): string => {
+      if (!value) return '';
+      return String(value).substring(0, 5);
+    };
+
+    const header = [
+      'Fecha',
+      'Hora',
+      'Documento',
+      'Nombre Completo',
+      'Celular',
+      'Correo',
+      'Profesional',
+      'Especialidad',
+      'Estado',
+    ].join(',') + '\n';
+
+    const rows = appointments.map((a: any) => {
+      const fecha = formatDate(a.date);
+      const hora = formatTime(a.time);
       const documento = a.patient?.document ?? '';
-      const nombre    = `${a.patient?.firstName ?? ''} ${a.patient?.lastName ?? ''}`.trim();
-      const celular   = a.patient?.phone ?? '';
-      return `${hora},${documento},${nombre},${celular}`;
+      const nombre = `${a.patient?.firstName ?? ''} ${a.patient?.lastName ?? ''}`.trim();
+      const celular = a.patient?.phone ?? '';
+      const correo = a.patient?.email ?? '';
+      const profesional = `${a.professional?.firstName ?? ''} ${a.professional?.lastName ?? ''}`.trim();
+      const especialidad = a.professional?.specialty ?? '';
+      const estado = a.status ?? '';
+
+      return [
+        fecha,
+        hora,
+        documento,
+        nombre,
+        celular,
+        correo,
+        profesional,
+        especialidad,
+        estado,
+      ].map(escapeCsv).join(',');
     }).join('\n');
 
     return header + rows;
