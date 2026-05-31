@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, Put, Patch, Delete, Req } from '@nestjs/common';
+﻿import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, Put, Patch, Delete, Req } from '@nestjs/common';
 import { PatientsService } from '../services/patients.service';
 import { CreatePatientDto } from '../dto/create-patient.dto';
 import { UpdatePatientDto } from '../dto/update-patient.dto';
@@ -24,7 +24,7 @@ export class PatientsController {
   }
   @Get('user')
 async findByUser(@Req() req: any) {
-  return await this.patientsService.findByUser(req.user.id);
+  return await this.patientsService.findByUser(req.user.id, req.user.user);
 }
 
   @Get(':id')
@@ -53,3 +53,4 @@ async findByUser(@Req() req: any) {
     return await this.patientsService.remove(id);
   }
 }
+

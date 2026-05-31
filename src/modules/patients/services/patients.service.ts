@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+﻿import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { Patient } from '../entities/patient.entity';
@@ -21,7 +21,7 @@ export class PatientsService {
         createPatientDto.document = createPatientDto.document.replace(/^-+|-+$/g, '');
         return await this.patientRepo.save(createPatientDto);
     } catch (error) {
-      console.error('Error en la creación del paciente:', error);
+      console.error('Error en la creaciÃ³n del paciente:', error);
       throw new InternalServerErrorException('No se pudo crear el paciente');
     }
   }
@@ -58,10 +58,21 @@ export class PatientsService {
     });
   }
 
-  async findByUser(user: string): Promise<Patient | null> {
-    return await this.patientRepo.findOne({
-      where: {user: {id: user}},
+  async findByUser(userId: string, username?: string): Promise<Patient | null> {
+    const patientByRelation = await this.patientRepo.findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
     });
+
+    if (patientByRelation) return patientByRelation;
+
+    if (username) {
+      return await this.patientRepo.findOne({
+        where: { document: username },
+      });
+    }
+
+    return null;
   }
 
   async linkUser(patientId: string, userId: string): Promise <Patient> {
@@ -113,3 +124,4 @@ export class PatientsService {
     return await this.patientRepo.save(patient);
   }
 }
+
