@@ -33,7 +33,7 @@ export class AppointmentService {
     });
 
     if (!availability) {
-      throw new BadRequestException('El profesional no tiene agenda en el dÃ­a seleccionado');
+      throw new BadRequestException('El profesional no tiene agenda en el día seleccionado');
     }
 
     const existingAppointment = await this.appointmentRepo.findOne({
@@ -98,7 +98,7 @@ export class AppointmentService {
     });
 
     if (!availability) {
-      throw new BadRequestException('El profesional no tiene agenda en el dÃ­a seleccionado');
+      throw new BadRequestException('El profesional no tiene agenda en el día seleccionado');
     }
 
     // Verificar que no haya conflicto con otra cita
@@ -246,3 +246,4 @@ await this.historyRepo.save(history);
     return header + rows;
   }
 }
+
