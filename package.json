@@ -32,7 +32,7 @@
     "axios": "^1.16.1",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
+    "class-validator": "0.14.2",
     "jwks-rsa": "^4.0.1",
     "keycloak-connect": "^26.1.1",
     "nest-keycloak-connect": "^1.10.1",
