@@ -1,24 +1,18 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Professional } from './modules/professionals/entities/professional.entity';
-import { Patient } from './modules/patients/entities/patient.entity';
-import { Appointment } from './modules/appointments/entities/appointment.entity';
-import { Availability } from './modules/availabilities/entities/availability.entity';
 import { ProfessionalsModule } from './modules/professionals/professionals.module';
 import { AvailabilitiesModule } from './modules/availabilities/availabilities.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
-import { User } from './modules/users/entities/user.entity';
 import { UsersModule } from './modules/users/users.module';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
 import { PatientRegistrationModule } from './application/patient-registration/patient-registration.module';
-import { KeycloakAuthGuard } from './modules/auth/guards/keycloak-auth.guard';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
-import { AppointmentHistory } from './modules/appointments/entities/appointment-history.entity';
 
 @Module({
   imports: [
@@ -32,11 +26,12 @@ import { AppointmentHistory } from './modules/appointments/entities/appointment-
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         host: config.get<string>('DB_HOST'),
-        port: config.get<number>('DB_PORT'),
+        port: Number(config.get<string>('DB_PORT')),
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
-        entities: [Professional, Patient, Appointment, Availability, User, AppointmentHistory],
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        autoLoadEntities: true,
         synchronize: true,
       }),
     }),
@@ -53,7 +48,7 @@ import { AppointmentHistory } from './modules/appointments/entities/appointment-
     AppService,
     {
       provide: APP_GUARD,
-      useClass: KeycloakAuthGuard,
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,
